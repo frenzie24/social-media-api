@@ -1,5 +1,5 @@
-const { Thought, User } = require("../models");
-
+const { Thought, User, Reaction } = require("../models");
+const { log, warn, info, error } = require('@frenzie24/logger')
 const thoughtController = {
   // get all thoughts
   async getThoughts(req, res) {
@@ -92,21 +92,25 @@ const thoughtController = {
   },
   // remove reaction from a thought
   async removeReaction(req, res) {
+    log('removing reactions')
+    log(req.params);
     try {
-      const thought = await Thought.findOneAndUpdate(
-        { _id: req.params.thoughtId },
-        { $pull: { reactions: { reactionId: req.params.reactionId } } },
-        { new: true }
+      const thought = await Thought.findById(req.params.thoughtId);
+      if (!thought) return res.status(404).json({ message: 'No thought found' });
+      log(thought)
+
+      const reaction = await thought.reactions.find(
+        reaction => reaction._id.toString() === req.params.reactionId
       );
-      if (!thought) {
-        return res.status(404).json({ message: 'No thought found with this id!' });
-        return;
-      }
-      return res.json(thought);
+      log(reaction)
+      if (!reaction) return res.status(404).json({ message: 'No reaction found' });
+      thought.reactions.pull(reaction);
+      const updatedThought = await thought.save();
+     return res.json(updatedThought)
     } catch (err) {
-      return res.status(500).json(err);
+      res.status(500).json({ message: err.message })
     }
-  },
+  }
 };
 
 module.exports = thoughtController;
